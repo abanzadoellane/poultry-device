@@ -1,3 +1,5 @@
+#include <Servo.h>
+
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
@@ -18,7 +20,7 @@ const int echoPin = D6;
 WiFiServer server(443);
 
 char *host = "poultry.zeusakalam.com";
-char *path = "/api/check";
+//char *path = "/api/check";
 
 float critical=0;
 float height=0;
@@ -37,6 +39,8 @@ void setup()
   // WiFiMulti.addAP("ITRec", "ITRec123!");
   WiFiMulti.addAP("C12", "june152001");
   WiFiMulti.addAP("money-changer", "c0in1234");
+  waitNetwork();
+  getConf();
 }
 
 void loop()
@@ -44,7 +48,8 @@ void loop()
   // wait for WiFi connection
   if ((WiFiMulti.run() == WL_CONNECTED))
   {
-    String payload=request(path);
+    float val=sense(trigPin, echoPin);
+    String payload=post("/api/feeder","level="+(String)val);
 
     // Use https://arduinojson.org/v6/assistant to compute the capacity.
     StaticJsonDocument<96> doc;
@@ -58,22 +63,19 @@ void loop()
       return;
     }
 
-    // const char *date = doc["date"]; // "2022-12-06"
-    // const char *time = doc["time"]; // "15:38:19"
     int feeding = doc["feeding"]; // 0
-    // Serial.println(date);
-    // Serial.println(time);
-    Serial.println(feeding);
-    // digitalWrite(BUILTIN_LED, feeding);
+//    digitalWrite(BUILTIN_LED, feeding);
     if(feeding==0)
       myservo.write(0);
     else
       myservo.write(180);
+  
+    delay(500);
   }
-  float val=sense(trigPin, echoPin);
-
-
-  delay(500);
+  else{
+    Serial.print(".");
+    delay(500);
+  }
 }
 String request(String path)
 {
@@ -191,9 +193,9 @@ String post(String path,String message)
 }
 void getConf()
 {
-  String payload=request("/api/checkmode");
+  String payload=request("/api/checkfeedmode");
 
-     // Use https://arduinojson.org/v6/assistant to compute the capacity.
+     // Use https://arduinojson.org/v6/agfssistant to compute the capacity.
     StaticJsonDocument<96> doc;
 
     DeserializationError error = deserializeJson(doc, payload);
@@ -212,6 +214,15 @@ void getConf()
     {
         Serial.println(mode);
         float tank=sense(trigPin, echoPin);
-        post("/api/feeder/tank","height="+String(tank));
+        post("/api/feeding/conf","tankheight="+String(tank));
     }
 }
+void waitNetwork()
+{
+  Serial.println("Waiting For Nwtwork");
+  while ((WiFiMulti.run() != WL_CONNECTED))
+  {
+    Serial.print(".");
+  }
+}
+
